@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import columnRoutes from './routes/column.routes';
+import taskRoutes from './routes/task.routes';
 
 dotenv.config();
 
@@ -21,8 +22,9 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
-// Registrar rutas de la API
+// Rutas principales de la API
 app.use('/api/columns', columnRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // Arrancar servidor
 app.listen(PORT, () => {
