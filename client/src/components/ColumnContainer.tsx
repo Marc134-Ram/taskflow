@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Column, Priority } from '../types';
+import type { Column, Task, Priority } from '../types';
 import { TaskCard } from './TaskCard';
 import { Droppable } from '@hello-pangea/dnd';
 import { Plus, Trash2, X } from 'lucide-react';
@@ -14,6 +14,7 @@ interface ColumnContainerProps {
     priority?: Priority
   ) => Promise<void>;
   onDeleteTask: (taskId: string, columnId: string) => void;
+  onTaskClick: (task: Task) => void;
 }
 
 export const ColumnContainer: React.FC<ColumnContainerProps> = ({
@@ -21,6 +22,7 @@ export const ColumnContainer: React.FC<ColumnContainerProps> = ({
   onDeleteColumn,
   onAddTask,
   onDeleteTask,
+  onTaskClick,
 }) => {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [title, setTitle] = useState('');
@@ -67,7 +69,7 @@ export const ColumnContainer: React.FC<ColumnContainerProps> = ({
         </button>
       </div>
 
-      {/* Zona Droppable de la Columna */}
+      {/* Droppable */}
       <Droppable droppableId={column.id}>
         {(provided, snapshot) => (
           <div
@@ -83,6 +85,7 @@ export const ColumnContainer: React.FC<ColumnContainerProps> = ({
                 task={task}
                 index={index}
                 onDeleteTask={() => onDeleteTask(task.id, column.id)}
+                onClick={onTaskClick}
               />
             ))}
             {provided.placeholder}
@@ -96,7 +99,7 @@ export const ColumnContainer: React.FC<ColumnContainerProps> = ({
         )}
       </Droppable>
 
-      {/* Pie de Columna */}
+      {/* Formulario / Botón de Añadir */}
       <div className="p-3 border-t border-slate-700/60">
         {isAddingTask ? (
           <form onSubmit={handleSubmit} className="bg-slate-900/90 p-3 rounded-xl border border-slate-700 flex flex-col gap-2 shadow-inner">

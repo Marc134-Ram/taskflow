@@ -7,6 +7,7 @@ interface TaskCardProps {
   task: Task;
   index: number;
   onDeleteTask: (taskId: string) => void;
+  onClick: (task: Task) => void;
 }
 
 const priorityStyles: Record<Priority, { label: string; badgeClass: string }> = {
@@ -24,7 +25,12 @@ const priorityStyles: Record<Priority, { label: string; badgeClass: string }> = 
   },
 };
 
-export const TaskCard: React.FC<TaskCardProps> = ({ task, index, onDeleteTask }) => {
+export const TaskCard: React.FC<TaskCardProps> = ({
+  task,
+  index,
+  onDeleteTask,
+  onClick,
+}) => {
   const priority = priorityStyles[task.priority] || priorityStyles.MEDIUM;
 
   return (
@@ -34,17 +40,18 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, index, onDeleteTask })
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`group bg-slate-800 border rounded-xl p-3.5 transition-shadow flex flex-col gap-2 select-none ${
+          onClick={() => onClick(task)}
+          className={`group bg-slate-800 border rounded-xl p-3.5 transition-all flex flex-col gap-2 select-none cursor-pointer ${
             snapshot.isDragging
               ? 'border-indigo-500 shadow-2xl bg-slate-750 rotate-1 ring-2 ring-indigo-500/30'
-              : 'border-slate-700/70 hover:border-slate-600 shadow-md hover:shadow-lg'
+              : 'border-slate-700/70 hover:border-slate-500 shadow-md hover:shadow-lg'
           }`}
         >
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-start gap-1.5 flex-1 min-w-0">
               <GripVertical
                 size={14}
-                className="text-slate-600 group-hover:text-slate-400 mt-0.5 flex-shrink-0 cursor-grab"
+                className="text-slate-600 group-hover:text-slate-400 mt-0.5 flex-shrink-0"
               />
               <h4 className="text-sm font-semibold text-slate-100 leading-snug break-words">
                 {task.title}
@@ -53,7 +60,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, index, onDeleteTask })
 
             <button
               onClick={(e) => {
-                e.stopPropagation();
+                e.stopPropagation(); // Evita abrir el modal al hacer clic en el icono de borrar
                 onDeleteTask(task.id);
               }}
               className="text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-rose-500/10 flex-shrink-0 cursor-pointer"

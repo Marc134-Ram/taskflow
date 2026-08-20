@@ -7,8 +7,9 @@ import {
   updateTask as apiUpdateTask,
   deleteTask as apiDeleteTask,
 } from './services/api';
-import type { Column, Priority } from './types';
+import type { Column, Task, Priority } from './types';
 import { ColumnContainer } from './components/ColumnContainer';
+import { TaskModal } from './components/TaskModal';
 import { DragDropContext } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { LayoutDashboard, Plus, Loader2 } from 'lucide-react';
@@ -17,6 +18,9 @@ function App() {
   const [columns, setColumns] = useState<Column[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [newColumnTitle, setNewColumnTitle] = useState<string>('');
+
+  // Estado para el modal de detalles/edición de tarea
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   useEffect(() => {
     loadData();
@@ -92,14 +96,25 @@ function App() {
     }
   };
 
-  // 4. Manejador de fin de arrastre (Drag & Drop)
+  // Manejador para actualizar los datos de la tarea editada en el Modal
+  const handleUpdateTaskDetails = async (
+    taskId: string,
+    data: { title?: string; description?: string | null; priority?: Priority }
+  ) => {
+    const updated = await apiUpdateTask(taskId, data);
+    setColumns(
+      columns.map((col) => ({
+        ...col,
+        tasks: col.tasks.map((task) => (task.id === taskId ? updated : task)),
+      }))
+    );
+  };
+
   const onDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
-    // A. Soltado fuera de cualquier columna válida
     if (!destination) return;
 
-    // B. Soltado en el mismo sitio donde empezó
     if (
       destination.droppableId === source.droppableId &&
       destination.index === source.index
@@ -115,23 +130,17 @@ function App() {
     const sourceCol = columns[sourceColIndex];
     const destCol = columns[destColIndex];
 
-    // Clonamos las listas de tareas para respetar la inmutabilidad
     const sourceTasks = Array.from(sourceCol.tasks);
     const [movedTask] = sourceTasks.splice(source.index, 1);
 
     if (source.droppableId === destination.droppableId) {
-      // Reordenar dentro de la misma columna
       sourceTasks.splice(destination.index, 0, movedTask);
       const newColumns = [...columns];
       newColumns[sourceColIndex] = { ...sourceCol, tasks: sourceTasks };
 
-      // Actualización optimista de UI
       setColumns(newColumns);
-
-      // Persistencia en Backend
       await apiUpdateTask(draggableId, { order: destination.index });
     } else {
-      // Mover a una columna distinta
       const destTasks = Array.from(destCol.tasks);
       const updatedMovedTask = { ...movedTask, columnId: destination.droppableId };
       destTasks.splice(destination.index, 0, updatedMovedTask);
@@ -140,10 +149,7 @@ function App() {
       newColumns[sourceColIndex] = { ...sourceCol, tasks: sourceTasks };
       newColumns[destColIndex] = { ...destCol, tasks: destTasks };
 
-      // Actualización optimista de UI
       setColumns(newColumns);
-
-      // Persistencia en Backend
       await apiUpdateTask(draggableId, {
         columnId: destination.droppableId,
         order: destination.index,
@@ -202,12 +208,21 @@ function App() {
                   onDeleteColumn={handleDeleteColumn}
                   onAddTask={handleAddTask}
                   onDeleteTask={handleDeleteTask}
+                  onTaskClick={(task) => setSelectedTask(task)}
                 />
               ))}
             </div>
           </DragDropContext>
         )}
       </main>
+
+      {/* Componente Modal */}
+      <TaskModal
+        task={selectedTask}
+        isOpen={selectedTask !== null}
+        onClose={() => setSelectedTask(null)}
+        onUpdateTask={handleUpdateTaskDetails}
+      />
     </div>
   );
 }
