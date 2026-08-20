@@ -53,7 +53,27 @@ export const createTask = async (
   return response.json();
 };
 
-// 5. Eliminar una tarea
+// 5. Actualizar propiedades o mover una tarea
+export const updateTask = async (
+  id: string,
+  data: {
+    title?: string;
+    description?: string | null;
+    priority?: Priority;
+    columnId?: string;
+    order?: number;
+  }
+): Promise<Task> => {
+  const response = await fetch(`${API_URL}/tasks/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Error al actualizar tarea');
+  return response.json();
+};
+
+// 6. Eliminar una tarea
 export const deleteTask = async (id: string): Promise<void> => {
   const response = await fetch(`${API_URL}/tasks/${id}`, {
     method: 'DELETE',

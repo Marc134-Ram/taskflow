@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Column, Priority } from '../types';
 import { TaskCard } from './TaskCard';
+import { Droppable } from '@hello-pangea/dnd';
 import { Plus, Trash2, X } from 'lucide-react';
 
 interface ColumnContainerProps {
@@ -21,7 +22,6 @@ export const ColumnContainer: React.FC<ColumnContainerProps> = ({
   onAddTask,
   onDeleteTask,
 }) => {
-  // Estado local para abrir o cerrar el formulario de nueva tarea
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -35,7 +35,6 @@ export const ColumnContainer: React.FC<ColumnContainerProps> = ({
     try {
       setIsSubmitting(true);
       await onAddTask(column.id, title.trim(), description.trim() || undefined, priority);
-      // Limpiar formulario y cerrar
       setTitle('');
       setDescription('');
       setPriority('MEDIUM');
@@ -49,7 +48,7 @@ export const ColumnContainer: React.FC<ColumnContainerProps> = ({
 
   return (
     <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl w-84 flex-shrink-0 flex flex-col max-h-[calc(100vh-130px)] shadow-xl">
-      {/* Cabecera de la columna */}
+      {/* Cabecera */}
       <div className="p-4 border-b border-slate-700/60 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-slate-100 text-sm tracking-wide">
@@ -61,31 +60,43 @@ export const ColumnContainer: React.FC<ColumnContainerProps> = ({
         </div>
         <button
           onClick={() => onDeleteColumn(column.id)}
-          className="text-slate-500 hover:text-rose-400 p-1 rounded-md hover:bg-slate-700/60 transition-colors"
+          className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-700/60 transition-colors cursor-pointer"
           title="Eliminar columna"
         >
           <Trash2 size={15} />
         </button>
       </div>
 
-      {/* Lista desplazable de tareas */}
-      <div className="p-3 flex-1 overflow-y-auto flex flex-col gap-2.5 min-h-[100px]">
-        {column.tasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            onDeleteTask={() => onDeleteTask(task.id, column.id)}
-          />
-        ))}
+      {/* Zona Droppable de la Columna */}
+      <Droppable droppableId={column.id}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={`p-3 flex-1 overflow-y-auto flex flex-col gap-2.5 min-h-[120px] transition-colors rounded-b-xl ${
+              snapshot.isDraggingOver ? 'bg-indigo-950/20' : ''
+            }`}
+          >
+            {column.tasks.map((task, index) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                index={index}
+                onDeleteTask={() => onDeleteTask(task.id, column.id)}
+              />
+            ))}
+            {provided.placeholder}
 
-        {column.tasks.length === 0 && !isAddingTask && (
-          <div className="h-28 border-2 border-dashed border-slate-700/60 rounded-xl flex items-center justify-center text-slate-500 text-xs">
-            Sin tareas en esta columna
+            {column.tasks.length === 0 && !isAddingTask && (
+              <div className="h-28 border-2 border-dashed border-slate-700/60 rounded-xl flex items-center justify-center text-slate-500 text-xs">
+                Arrastra una tarea aquí
+              </div>
+            )}
           </div>
         )}
-      </div>
+      </Droppable>
 
-      {/* Pie de la columna: Formulario o Botón de Añadir */}
+      {/* Pie de Columna */}
       <div className="p-3 border-t border-slate-700/60">
         {isAddingTask ? (
           <form onSubmit={handleSubmit} className="bg-slate-900/90 p-3 rounded-xl border border-slate-700 flex flex-col gap-2 shadow-inner">
@@ -119,14 +130,14 @@ export const ColumnContainer: React.FC<ColumnContainerProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsAddingTask(false)}
-                  className="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+                  className="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   <X size={15} />
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || !title.trim()}
-                  className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors shadow-sm"
+                  className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors shadow-sm cursor-pointer"
                 >
                   {isSubmitting ? 'Guardando...' : 'Crear'}
                 </button>
@@ -136,7 +147,7 @@ export const ColumnContainer: React.FC<ColumnContainerProps> = ({
         ) : (
           <button
             onClick={() => setIsAddingTask(true)}
-            className="w-full bg-slate-700/40 hover:bg-slate-700 text-slate-300 hover:text-white py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border border-transparent hover:border-slate-600"
+            className="w-full bg-slate-700/40 hover:bg-slate-700 text-slate-300 hover:text-white py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border border-transparent hover:border-slate-600 cursor-pointer"
           >
             <Plus size={15} /> Añadir Tarea
           </button>

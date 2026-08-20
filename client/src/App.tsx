@@ -4,10 +4,13 @@ import {
   createColumn,
   deleteColumn as apiDeleteColumn,
   createTask as apiCreateTask,
+  updateTask as apiUpdateTask,
   deleteTask as apiDeleteTask,
 } from './services/api';
 import type { Column, Priority } from './types';
 import { ColumnContainer } from './components/ColumnContainer';
+import { DragDropContext } from '@hello-pangea/dnd';
+import type { DropResult } from '@hello-pangea/dnd';
 import { LayoutDashboard, Plus, Loader2 } from 'lucide-react';
 
 function App() {
@@ -31,7 +34,6 @@ function App() {
     }
   };
 
-  // 1. Crear Columna
   const handleAddColumn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newColumnTitle.trim()) return;
@@ -45,18 +47,15 @@ function App() {
     }
   };
 
-  // 2. Eliminar Columna
   const handleDeleteColumn = async (columnId: string) => {
     try {
       await apiDeleteColumn(columnId);
-      // Filtramos la columna eliminada fuera del estado de React
       setColumns(columns.filter((c) => c.id !== columnId));
     } catch (error) {
       console.error('Error al eliminar columna:', error);
     }
   };
 
-  // 3. Crear Tarea dentro de una Columna
   const handleAddTask = async (
     columnId: string,
     title: string,
@@ -64,25 +63,19 @@ function App() {
     priority: Priority = 'MEDIUM'
   ) => {
     const newTask = await apiCreateTask(columnId, title, description, priority);
-    // Inyectamos la nueva tarea dentro del array de la columna correspondiente
     setColumns(
       columns.map((col) => {
         if (col.id === columnId) {
-          return {
-            ...col,
-            tasks: [...col.tasks, newTask],
-          };
+          return { ...col, tasks: [...col.tasks, newTask] };
         }
         return col;
       })
     );
   };
 
-  // 4. Eliminar Tarea
   const handleDeleteTask = async (taskId: string, columnId: string) => {
     try {
       await apiDeleteTask(taskId);
-      // Removemos la tarea del estado local de React
       setColumns(
         columns.map((col) => {
           if (col.id === columnId) {
@@ -99,9 +92,67 @@ function App() {
     }
   };
 
+  // 4. Manejador de fin de arrastre (Drag & Drop)
+  const onDragEnd = async (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    // A. Soltado fuera de cualquier columna válida
+    if (!destination) return;
+
+    // B. Soltado en el mismo sitio donde empezó
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    const sourceColIndex = columns.findIndex((c) => c.id === source.droppableId);
+    const destColIndex = columns.findIndex((c) => c.id === destination.droppableId);
+
+    if (sourceColIndex === -1 || destColIndex === -1) return;
+
+    const sourceCol = columns[sourceColIndex];
+    const destCol = columns[destColIndex];
+
+    // Clonamos las listas de tareas para respetar la inmutabilidad
+    const sourceTasks = Array.from(sourceCol.tasks);
+    const [movedTask] = sourceTasks.splice(source.index, 1);
+
+    if (source.droppableId === destination.droppableId) {
+      // Reordenar dentro de la misma columna
+      sourceTasks.splice(destination.index, 0, movedTask);
+      const newColumns = [...columns];
+      newColumns[sourceColIndex] = { ...sourceCol, tasks: sourceTasks };
+
+      // Actualización optimista de UI
+      setColumns(newColumns);
+
+      // Persistencia en Backend
+      await apiUpdateTask(draggableId, { order: destination.index });
+    } else {
+      // Mover a una columna distinta
+      const destTasks = Array.from(destCol.tasks);
+      const updatedMovedTask = { ...movedTask, columnId: destination.droppableId };
+      destTasks.splice(destination.index, 0, updatedMovedTask);
+
+      const newColumns = [...columns];
+      newColumns[sourceColIndex] = { ...sourceCol, tasks: sourceTasks };
+      newColumns[destColIndex] = { ...destCol, tasks: destTasks };
+
+      // Actualización optimista de UI
+      setColumns(newColumns);
+
+      // Persistencia en Backend
+      await apiUpdateTask(draggableId, {
+        columnId: destination.droppableId,
+        order: destination.index,
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
-      {/* Header */}
       <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-10 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="bg-indigo-600 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-500/25">
@@ -130,7 +181,6 @@ function App() {
         </form>
       </header>
 
-      {/* Tablero Kanban */}
       <main className="flex-1 p-6 overflow-x-auto">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
@@ -140,20 +190,22 @@ function App() {
         ) : columns.length === 0 ? (
           <div className="text-center py-20 text-slate-500">
             <p className="text-base font-medium">No hay columnas todavía</p>
-            <p className="text-xs mt-1">Crea tu primera columna arriba a la derecha para empezar a organizar tareas.</p>
+            <p className="text-xs mt-1">Crea tu primera columna arriba a la derecha para empezar.</p>
           </div>
         ) : (
-          <div className="flex gap-5 items-start">
-            {columns.map((column) => (
-              <ColumnContainer
-                key={column.id}
-                column={column}
-                onDeleteColumn={handleDeleteColumn}
-                onAddTask={handleAddTask}
-                onDeleteTask={handleDeleteTask}
-              />
-            ))}
-          </div>
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="flex gap-5 items-start">
+              {columns.map((column) => (
+                <ColumnContainer
+                  key={column.id}
+                  column={column}
+                  onDeleteColumn={handleDeleteColumn}
+                  onAddTask={handleAddTask}
+                  onDeleteTask={handleDeleteTask}
+                />
+              ))}
+            </div>
+          </DragDropContext>
         )}
       </main>
     </div>
